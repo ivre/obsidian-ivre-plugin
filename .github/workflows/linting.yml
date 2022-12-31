@@ -1,0 +1,55 @@
+# This file is part of IVRE.
+# Copyright 2011 - 2022 Pierre LALET <pierre@droids-corp.org>
+#
+# IVRE is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# IVRE is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with IVRE. If not, see <http://www.gnu.org/licenses/>.
+
+name: Linting tests
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11']
+        node-version: ['19']
+
+    steps:
+
+    - name: Git checkout
+      uses: actions/checkout@v2
+
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Use Node ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - run: pip install codespell
+
+    - run: git ls-files | grep -vE '(^package-lock\.json|^doc/.*\.png)$' | xargs -r codespell
+
+    - run: npm install
+
+    - run: ./node_modules/prettier/bin-prettier.js --check main.ts
+
+    - run: ./node_modules/eslint/bin/eslint.js main.ts
+
+    - run: ./node_modules/typescript/bin/tsc -noEmit -skipLibCheck --target es2022 --moduleResolution node main.ts

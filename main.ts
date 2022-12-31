@@ -58,8 +58,11 @@ interface IvrePubkey {
 }
 
 interface IvreScript {
+	// @ts-ignore
 	id: string;
+	// @ts-ignore
 	output: string;
+	// @ts-ignore
 	"ssl-cert"?: IvreCertificate[];
 
 	[structured: string]: JSON;
@@ -145,7 +148,7 @@ function flag_emoji(country_code: string): string {
 	const codePoints = country_code
 		.toUpperCase()
 		.split("")
-		.map((char) => 127397 + char.charCodeAt());
+		.map((char) => 127397 + char.charCodeAt(0));
 	return String.fromCodePoint(...codePoints);
 }
 function tag_emoji(tag: IvreTag): string | undefined {
