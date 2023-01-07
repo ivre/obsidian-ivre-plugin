@@ -186,9 +186,9 @@ function isValidHostname(value: string): boolean {
 }
 
 function ivre_create_as(num: number, name: string, base_directory: string) {
-	const base = [base_directory, "AS"].join("/");
+	const base = `${base_directory}/AS`;
 	create_folder(base);
-	const fname = [base, `AS${num}.md`].join("/");
+	const fname = `${base}/AS${num}.md`;
 	this.app.vault.create(fname, `AS${num} - ${name}\n`);
 }
 function ivre_create_country(
@@ -196,21 +196,21 @@ function ivre_create_country(
 	name: string,
 	base_directory: string
 ) {
-	const base = [base_directory, "Country"].join("/");
+	const base = `${base_directory}/Country`;
 	create_folder(base);
-	const fname = [base, `${code}.md`].join("/");
+	const fname = `${base}/${code}.md`;
 	this.app.vault.create(fname, `${flag_emoji(code)} - ${code} - ${name}\n`);
 }
 function ivre_create_category(category: string, base_directory: string) {
-	const base = [base_directory, "Category"].join("/");
+	const base = `${base_directory}/Category`;
 	create_folder(base);
-	const fname = [base, `${category}.md`].join("/");
+	const fname = `${base}/${category}.md`;
 	this.app.vault.create(fname, `Category ${category}\n`);
 }
 function ivre_create_hostname(name: string, base_directory: string) {
-	const base = [base_directory, "Hostname"].join("/");
+	const base = `${base_directory}/Hostname`;
 	create_folder(base);
-	const fname = [base, `${name}.md`].join("/");
+	const fname = `${base}/${name}.md`;
 	let answer = `- Hostname ${name}\n`;
 	const dot_index = name.indexOf(".");
 	if (dot_index > -1) {
@@ -221,15 +221,15 @@ function ivre_create_hostname(name: string, base_directory: string) {
 	this.app.vault.create(fname, answer);
 }
 function ivre_create_hash(hash: string, base_directory: string) {
-	const base = [base_directory, "Hash"].join("/");
+	const base = `${base_directory}/Hash`;
 	create_folder(base);
-	const fname = [base, `${hash}.md`].join("/");
+	const fname = `${base}/${hash}.md`;
 	this.app.vault.create(fname, `${hash}`);
 }
 function ivre_create_pubkey(pubkey: IvrePubkey, base_directory: string) {
-	const base = [base_directory, "Pubkey"].join("/");
+	const base = `${base_directory}/Pubkey`;
 	create_folder(base);
-	const fname = [base, `${pubkey.sha256}.md`].join("/");
+	const fname = `${base}/${pubkey.sha256}.md`;
 	let answer = "Public key\n";
 	answer += "\n# Information #\n";
 	answer += `- Type: ${pubkey.type}\n`;
@@ -254,9 +254,9 @@ function ivre_create_certificate(
 	cert: IvreCertificate,
 	base_directory: string
 ) {
-	const base = [base_directory, "Certificate"].join("/");
+	const base = `${base_directory}/Certificate`;
 	create_folder(base);
-	const fname = [base, `${cert.sha256}.md`].join("/");
+	const fname = `${base}/${cert.sha256}.md`;
 	let answer = "Certificate\n";
 	answer += "\n# Subject & Issuer #\n";
 	answer += `- Subject: ${cert.subject_text}`;
@@ -291,9 +291,9 @@ function ivre_handle_address(
 		data.push(result);
 	}
 	if (data.length > 0) {
-		const base = [settings.base_directory, "IP"].join("/");
+		const base = `${settings.base_directory}/IP`;
 		create_folder(base);
-		const fname = [base, `${address.replace(/:/g, "_")}.md`].join("/");
+		const fname = `${base}/${address.replace(/:/g, "_")}.md`;
 		this.app.vault.create(fname, data.join("\n"));
 		return fname;
 	}
@@ -318,29 +318,27 @@ function ivre_handle_hostname(
 				data.push(data_result);
 			}
 			data.push(result.data);
-			const base = [settings.base_directory, "IP"].join("/");
+			const base = `${settings.base_directory}/IP`;
 			create_folder(base);
 			this.app.vault.create(
-				[base, `${result.address.replace(/:/g, "_")}.md`].join("/"),
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				data.join("\n")
 			);
 			one_answer = true;
 		}
 	} else {
 		for (const result of inst.process_hostname(hostname, settings)) {
-			const base = [settings.base_directory, "IP"].join("/");
+			const base = `${settings.base_directory}/IP`;
 			create_folder(base);
 			this.app.vault.create(
-				[base, `${result.address.replace(/:/g, "_")}.md`].join("/"),
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				result
 			);
 			one_answer = true;
 		}
 	}
 	if (one_answer) {
-		return [settings.base_directory, "Hostname", `${hostname}.md`].join(
-			"/"
-		);
+		return `${settings.base_directory}/Hostname/${hostname}.md`;
 	}
 	return undefined;
 }
@@ -362,29 +360,29 @@ function ivre_handle_network(
 				data.push(data_result);
 			}
 			data.push(result.data);
-			const base = [settings.base_directory, "IP"].join("/");
+			const base = `${settings.base_directory}/IP`;
 			create_folder(base);
 			this.app.vault.create(
-				[base, `${result.address.replace(/:/g, "_")}.md`].join("/"),
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				data.join("\n")
 			);
 			answers.push(result.address);
 		}
 	} else {
 		for (const result of inst.process_network(network, settings)) {
-			const base = [settings.base_directory, "IP"].join("/");
+			const base = `${settings.base_directory}/IP`;
 			create_folder(base);
 			this.app.vault.create(
-				[base, `${result.address.replace(/:/g, "_")}.md`].join("/"),
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				result
 			);
 			answers.push(result.address);
 		}
 	}
 	if (answers.length > 0) {
-		const base = [settings.base_directory, "Network"].join("/");
+		const base = `${settings.base_directory}/Network`;
 		create_folder(base);
-		const fname = [base, `${network.replace(/[/:]/g, "_")}.md`].join("/");
+		const fname = `${base}/${network.replace(/[/:]/g, "_")}.md`;
 		const addr_list = answers
 			.map((addr) => {
 				return `- [[${settings.base_directory}/IP/${addr.replace(
