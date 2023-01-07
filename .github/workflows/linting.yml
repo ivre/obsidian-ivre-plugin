@@ -53,3 +53,5 @@ jobs:
     - run: ./node_modules/eslint/bin/eslint.js main.ts
 
     - run: ./node_modules/typescript/bin/tsc -noEmit -skipLibCheck --target es2022 --moduleResolution node main.ts
+
+    - run: node esbuild.config.mjs production
