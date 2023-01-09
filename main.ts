@@ -87,6 +87,9 @@ interface IvreTag {
 
 interface IvreHost {
 	addr: string;
+	addresses: {
+		mac: string[];
+	};
 	categories: string[];
 	tags: IvreTag[];
 	hostnames: IvreHostname[];
@@ -110,9 +113,13 @@ enum ElementType {
 	IpAddress,
 	IpNetwork,
 	HostName,
+	MacAddress,
 
 	Unknown,
 }
+
+const MAC_ADDRESS =
+	/^[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}$/i;
 
 function ivre_guess_type(element: string): ElementType {
 	if (isIPAddress(element)) {
@@ -132,6 +139,9 @@ function ivre_guess_type(element: string): ElementType {
 	}
 	if (isValidHostname(element)) {
 		return ElementType.HostName;
+	}
+	if (MAC_ADDRESS.test(element)) {
+		return ElementType.MacAddress;
 	}
 	return ElementType.Unknown;
 }
@@ -206,6 +216,21 @@ function ivre_create_category(category: string, base_directory: string) {
 	create_folder(base);
 	const fname = `${base}/${category}.md`;
 	this.app.vault.create(fname, `Category ${category}\n`);
+}
+function ivre_create_mac(mac: string, base_directory: string) {
+	const base = `${base_directory}/MAC`;
+	create_folder(base);
+	const fname = `${base}/${mac.toLowerCase().replace(/:/g, "")}.md`;
+	const ivre_ipdata = spawnSync("ivre", ["macdata", "--json", mac]);
+	let content = `MAC ${mac.toLowerCase()}\n`;
+	const data = JSON.parse(ivre_ipdata.stdout.toString());
+	if ("manufacturer_code" in data) {
+		content += `- Manufacturer code: ${data.manufacturer_code}\n`;
+	}
+	if ("manufacturer_name" in data) {
+		content += `- Manufacturer name: ${data.manufacturer_name}\n`;
+	}
+	this.app.vault.create(fname, content);
 }
 function ivre_create_hostname(name: string, base_directory: string) {
 	const base = `${base_directory}/Hostname`;
@@ -396,6 +421,49 @@ function ivre_handle_network(
 	}
 	return undefined;
 }
+function ivre_handle_mac(
+	mac: string,
+	settings: IvrePluginSettings
+): string | undefined {
+	const inst = new IvreSearchView();
+	let one_answer = false;
+	mac = mac.toLowerCase();
+	if (settings.use_data) {
+		const inst_data = new IvreSearchData();
+		for (const result of inst.process_mac(mac, settings)) {
+			const data = [];
+			const data_result = inst_data.process_ipaddress(
+				result.address,
+				settings
+			);
+			if (data_result) {
+				data.push(data_result);
+			}
+			data.push(result.data);
+			const base = `${settings.base_directory}/IP`;
+			create_folder(base);
+			this.app.vault.create(
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
+				data.join("\n")
+			);
+			one_answer = true;
+		}
+	} else {
+		for (const result of inst.process_mac(mac, settings)) {
+			const base = `${settings.base_directory}/IP`;
+			create_folder(base);
+			this.app.vault.create(
+				`${base}/${result.address.replace(/:/g, "_")}.md`,
+				result
+			);
+			one_answer = true;
+		}
+	}
+	if (one_answer) {
+		return `${settings.base_directory}/MAC/${mac.replace(/:/g, "")}.md`;
+	}
+	return undefined;
+}
 
 class IvreSearch {}
 
@@ -469,7 +537,10 @@ class IvreSearchView extends IvreSearch {
 		let answer = "";
 		let tmp_answer = "";
 		(data.tags || []).forEach((tag: IvreTag) => {
-			tmp_answer += `${tag_emoji(tag)} #${tag.value.replace(" ", "_")}\n`;
+			tmp_answer += `${tag_emoji(tag)} #${tag.value.replace(
+				/ /g,
+				"_"
+			)}\n`;
 		});
 		if (tmp_answer) {
 			answer += tmp_answer;
@@ -481,6 +552,16 @@ class IvreSearchView extends IvreSearch {
 		});
 		if (tmp_answer) {
 			answer += `\n## Categories ##\n${tmp_answer}`;
+		}
+		tmp_answer = "";
+		((data.addresses || {}).mac || []).forEach((addr: string) => {
+			ivre_create_mac(addr, settings.base_directory);
+			tmp_answer += `- [[${settings.base_directory}/MAC/${addr
+				.toLowerCase()
+				.replace(/:/g, "")}|${addr}]]\n`;
+		});
+		if (tmp_answer) {
+			answer += `\n## MAC addresses ##\n${tmp_answer}`;
 		}
 		tmp_answer = "";
 		(data.hostnames || []).forEach((hname: IvreHostname) => {
@@ -596,6 +677,26 @@ class IvreSearchView extends IvreSearch {
 			}
 		}
 	}
+	*process_mac(
+		mac: string,
+		settings: IvrePluginSettings
+	): Generator<IvreMarkdownResult, void, unknown> {
+		const options = ["view", "--json"];
+		if (settings.db_url_view) {
+			options.push("--from-db", settings.db_url_view);
+		}
+		options.push("--mac", mac);
+		const ivre_view = spawnSync("ivre", options);
+		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
+			const data = this.process_line(line, settings);
+			if (data) {
+				yield {
+					address: JSON.parse(line).addr,
+					data: `\n# View #\n${data}`,
+				};
+			}
+		}
+	}
 }
 
 function ivre_analyze_selection(
@@ -626,6 +727,14 @@ function ivre_analyze_selection(
 			case ElementType.HostName: {
 				new Notice(`Processing hostname: ${element}`);
 				const fname = ivre_handle_hostname(element, settings);
+				if (fname) {
+					links.push({ element: element, link: fname.slice(0, -3) });
+				}
+				break;
+			}
+			case ElementType.MacAddress: {
+				new Notice(`Processing MAC address: ${element}`);
+				const fname = ivre_handle_mac(element, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
 				}
