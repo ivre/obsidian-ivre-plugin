@@ -115,13 +115,14 @@ enum ElementType {
 	HostName,
 	MacAddress,
 
+	IvreLink,
 	Unknown,
 }
 
 const MAC_ADDRESS =
 	/^[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}$/i;
 
-function ivre_guess_type(element: string): ElementType {
+function ivre_guess_type(element: string, base_directory: string): ElementType {
 	if (isIPAddress(element)) {
 		return ElementType.IpAddress;
 	}
@@ -142,6 +143,12 @@ function ivre_guess_type(element: string): ElementType {
 	}
 	if (MAC_ADDRESS.test(element)) {
 		return ElementType.MacAddress;
+	}
+	const ivre_link = new RegExp(
+		`^\\[\\[${base_directory}/(IP|Network|Hostname|MAC)/[^|\\]]+\\|[^\\]]+\\]\\]$`
+	);
+	if (ivre_link.test(element)) {
+		return ElementType.IvreLink;
 	}
 	return ElementType.Unknown;
 }
@@ -707,7 +714,7 @@ function ivre_analyze_selection(
 	const links = [];
 	let content_data = editor.getSelection();
 	content_data.split(/\s+/).forEach((element) => {
-		switch (ivre_guess_type(element)) {
+		switch (ivre_guess_type(element, settings.base_directory)) {
 			case ElementType.IpAddress: {
 				new Notice(`Processing IP address: ${element}`);
 				const fname = ivre_handle_address(element, settings);
@@ -737,6 +744,39 @@ function ivre_analyze_selection(
 				const fname = ivre_handle_mac(element, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
+				}
+				break;
+			}
+			case ElementType.IvreLink: {
+				// This is already an IVRE link; just process the element again
+				// without adding it to `links`
+				const data = element.match(/\[\[[^|]+\|([^\]]+)\]\]/);
+				if (data !== null) {
+					switch (ivre_guess_type(data[1], settings.base_directory)) {
+						case ElementType.IpAddress: {
+							new Notice(`Processing IP address: ${data[1]}`);
+							ivre_handle_address(data[1], settings);
+							break;
+						}
+						case ElementType.IpNetwork: {
+							new Notice(`Processing network: ${data[1]}`);
+							ivre_handle_network(data[1], settings);
+							break;
+						}
+						case ElementType.HostName: {
+							new Notice(`Processing hostname: ${data[1]}`);
+							ivre_handle_hostname(data[1], settings);
+							break;
+						}
+						case ElementType.MacAddress: {
+							new Notice(`Processing MAC address: ${data[1]}`);
+							ivre_handle_mac(data[1], settings);
+							break;
+						}
+						default: {
+							new Notice(`Element ignored: ${data[1]}`);
+						}
+					}
 				}
 				break;
 			}
