@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-ivre-plugin",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "IVRE plugin for Obsidian",
 	"main": "main.js",
 	"scripts": {
@@ -10,7 +10,7 @@
 	},
 	"keywords": [],
 	"author": "",
-	"license": "MIT",
+	"license": "GPL-3.0",
 	"devDependencies": {
 		"@types/node": "^18.11.18",
 		"@typescript-eslint/eslint-plugin": "5.48.1",
