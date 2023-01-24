@@ -407,8 +407,8 @@ function ivre_handle_network(
 	const answers = [];
 	if (settings.use_data) {
 		const inst_data = new IvreSearchData();
-		const data = [];
 		for (const result of inst.process_network(network, vault, settings)) {
+			const data = [];
 			const data_result = inst_data.process_ipaddress(
 				result.address,
 				vault,
