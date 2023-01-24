@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-ivre-plugin",
 	"name": "IVRE",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"minAppVersion": "0.15.0",
 	"description": "IVRE integration for Obsidian: grab data from IVRE and brings it into Obsidian notes.",
 	"author": "The IVRE contributors",
