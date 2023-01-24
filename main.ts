@@ -879,7 +879,7 @@ export default class IvrePlugin extends Plugin {
 									this.settings,
 									view.editor,
 									this.app.vault,
-									this.app.workspace.getActiveFile()
+									view.file
 								);
 							} else {
 								new Notice(
@@ -932,7 +932,7 @@ export default class IvrePlugin extends Plugin {
 					this.settings,
 					editor,
 					this.app.vault,
-					this.app.workspace.getActiveFile()
+					view.file
 				);
 			},
 		});
