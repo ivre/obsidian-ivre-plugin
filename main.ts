@@ -162,13 +162,12 @@ function create_folder(vault: Vault, base: string) {
 		/* continue regardless of error */
 	}
 }
-// https://dev.to/jorik/country-code-to-flag-emoji-a21
 function flag_emoji(country_code: string): string {
-	const codePoints = country_code
+	return country_code
 		.toUpperCase()
-		.split("")
-		.map((char) => 127397 + char.charCodeAt(0));
-	return String.fromCodePoint(...codePoints);
+		.replace(/[A-Z]/g, (char) =>
+			String.fromCodePoint(127397 + char.charCodeAt(0))
+		);
 }
 function tag_emoji(tag: IvreTag): string | undefined {
 	switch (tag.type) {
