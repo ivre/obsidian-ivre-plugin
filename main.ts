@@ -79,6 +79,8 @@ interface IvrePort {
 	service_product?: string;
 	service_version?: string;
 	service_extrainfo?: string;
+	screenshot?: string;
+	screendata?: string;
 }
 
 interface IvreTag {
@@ -649,9 +651,16 @@ class IvreSearchView extends IvreSearch {
 					);
 				}
 			});
+			if (port.screenshot === "field" && port.screendata) {
+				tmp_answer += `\n![](data:image/png;base64,${port.screendata})\n`;
+			}
+			tmp_answer += "\n";
 		});
 		if (tmp_answer) {
-			answer += `\n## Ports ##\n${tmp_answer}`;
+			answer += `\n## Ports ##\n${tmp_answer.substring(
+				0,
+				tmp_answer.length - 1
+			)}`;
 		}
 		return answer;
 	}
