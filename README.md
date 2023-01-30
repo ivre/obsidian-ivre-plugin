@@ -1,3 +1,10 @@
+[![Join the chat at Gitter](https://badges.gitter.im/ivre/ivre.svg)](https://gitter.im/ivre/ivre)
+[![Follow on Twitter](https://img.shields.io/twitter/follow/IvreRocks.svg?logo=twitter)](https://twitter.com/IvreRocks)
+![Follow on Mastodon](https://img.shields.io/mastodon/follow/109349639355238149?domain=https%3A%2F%2Finfosec.exchange&style=social)
+[![GitHub stars](https://img.shields.io/github/stars/ivre/obsidian-ivre-plugin?style=social)](https://github.com/ivre/obsidian-ivre-plugin)
+[![Github downloads](https://img.shields.io/github/downloads/ivre/obsidian-ivre-plugin/total.svg)](https://github.com/ivre/obsidian-ivre-plugin/releases/)
+[![Linting tests](https://github.com/ivre/obsidian-ivre-plugin/actions/workflows/linting.yml/badge.svg?branch=master)](https://github.com/ivre/obsidian-ivre-plugin/actions/workflows/linting.yml/?branch=master)
+
 # Obsidian IVRE Plugin
 
 This is an [IVRE](https://ivre.rocks) plugin for [Obsidian](https://obsidian.md). It grabs data from IVRE and brings it into Obsidian notes. It requires to have the IVRE CLI installed.
