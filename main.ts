@@ -171,19 +171,15 @@ function flag_emoji(country_code: string): string {
 			String.fromCodePoint(127397 + char.charCodeAt(0))
 		);
 }
-function tag_emoji(tag: IvreTag): string | undefined {
+function tag_type(tag: IvreTag): string {
 	switch (tag.type) {
-		case "info": {
-			return "ℹ️";
-		}
-		case "warning": {
-			return "⚠️";
-		}
+		case "info":
+		case "warning":
 		case "danger": {
-			return "🚨";
+			return tag.type.toUpperCase();
 		}
 		default: {
-			return undefined;
+			return "EXAMPLE";
 		}
 	}
 }
@@ -577,9 +573,10 @@ class IvreSearchView extends IvreSearch {
 		let answer = "";
 		let tmp_answer = "";
 		(data.tags || []).forEach((tag: IvreTag) => {
-			tmp_answer += `${tag_emoji(tag)} #${tag.value.replace(
-				/ /g,
-				"_"
+			tmp_answer += `\n> [!${tag_type(tag)}]- ${
+				tag.value
+			}\n> #${tag.value.replace(/ /g, "_")}\n> ${tag.info.join(
+				"\n> "
 			)}\n`;
 		});
 		if (tmp_answer) {
