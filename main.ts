@@ -512,7 +512,7 @@ class IvreSearchData extends IvreSearch {
 		options.push(address);
 		const ivre_ipdata = spawnSync("ivre", options);
 		const data = JSON.parse(ivre_ipdata.stdout.toString());
-		let answer = "\n# IP Data #\n";
+		let answer = "> [!ABSTRACT] IP Data\n";
 		if ("as_num" in data) {
 			ivre_create_as(
 				data.as_num,
@@ -520,7 +520,7 @@ class IvreSearchData extends IvreSearch {
 				vault,
 				settings.base_directory
 			);
-			answer += `\n## Autonomous System ##\n[[${
+			answer += `> ## Autonomous System ##\n> [[${
 				settings.base_directory
 			}/AS/AS${data.as_num}|AS${data.as_num} - ${
 				data.as_name || "-"
@@ -533,25 +533,24 @@ class IvreSearchData extends IvreSearch {
 				vault,
 				settings.base_directory
 			);
-			answer += `\n## Geography ##\n\n### Country ###\n[[${
+			answer += `> ## Geography ##\n> Country: [[${
 				settings.base_directory
 			}/Country/${data.country_code}|${flag_emoji(data.country_code)} - ${
 				data.country_code
 			} - ${data.country_name || "-"}]]\n`;
 			if ("region_code" in data) {
-				answer += "\n### Region ###\n";
 				data.region_code.forEach((code: string, index: number) => {
-					answer += `${code} - ${data.region_name[index] || "-"}\n`;
+					answer += `> Region: ${code} - ${
+						data.region_name[index] || "-"
+					}\n`;
 				});
 			}
 			if ("city" in data) {
-				answer += `\n### City ###\n${data.city} - ${
-					data.postal_code || "-"
-				}\n`;
+				answer += `> City: ${data.city} - ${data.postal_code || "-"}\n`;
 			}
 		}
 		if ("address_type" in data) {
-			answer += `\n## Address type ##\n${data.address_type}\n`;
+			answer += `> ## Address type ##\n> ${data.address_type}\n`;
 		}
 		return answer;
 	}
@@ -573,11 +572,11 @@ class IvreSearchView extends IvreSearch {
 		let answer = "";
 		let tmp_answer = "";
 		(data.tags || []).forEach((tag: IvreTag) => {
-			tmp_answer += `\n> [!${tag_type(tag)}]- ${
+			tmp_answer += `> [!${tag_type(tag)}]- ${
 				tag.value
 			}\n> #${tag.value.replace(/ /g, "_")}\n> ${tag.info.join(
 				"\n> "
-			)}\n`;
+			)}\n\n`;
 		});
 		if (tmp_answer) {
 			answer += tmp_answer;
@@ -588,7 +587,7 @@ class IvreSearchView extends IvreSearch {
 			ivre_create_category(category, vault, settings.base_directory);
 		});
 		if (tmp_answer) {
-			answer += `\n## Categories ##\n${tmp_answer}`;
+			answer += `\n# Categories #\n${tmp_answer}`;
 		}
 		tmp_answer = "";
 		((data.addresses || {}).mac || []).forEach((addr: string) => {
@@ -598,7 +597,7 @@ class IvreSearchView extends IvreSearch {
 				.replace(/:/g, "")}|${addr}]]\n`;
 		});
 		if (tmp_answer) {
-			answer += `\n## MAC addresses ##\n${tmp_answer}`;
+			answer += `\n# MAC addresses #\n${tmp_answer}`;
 		}
 		tmp_answer = "";
 		(data.hostnames || []).forEach((hname: IvreHostname) => {
@@ -606,14 +605,14 @@ class IvreSearchView extends IvreSearch {
 			ivre_create_hostname(hname.name, vault, settings.base_directory);
 		});
 		if (tmp_answer) {
-			answer += `\n## Hostnames ##\n${tmp_answer}`;
+			answer += `\n# Hostnames #\n${tmp_answer}`;
 		}
 		tmp_answer = "";
 		(data.ports || []).forEach((port: IvrePort) => {
 			if (port.port === -1) {
 				return;
 			}
-			tmp_answer += `\n### ${port.protocol}/${port.port} ###\n`;
+			tmp_answer += `\n## ${port.protocol}/${port.port} ##\n`;
 			tmp_answer += `- Status: ${port.state_state}\n`;
 			if (port.service_name) {
 				tmp_answer += `- Service: ${port.service_name}`;
@@ -654,7 +653,7 @@ class IvreSearchView extends IvreSearch {
 			tmp_answer += "\n";
 		});
 		if (tmp_answer) {
-			answer += `\n## Ports ##\n${tmp_answer.substring(
+			answer += `\n# Ports #\n${tmp_answer.substring(
 				0,
 				tmp_answer.length - 1
 			)}`;
@@ -675,7 +674,7 @@ class IvreSearchView extends IvreSearch {
 		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
 			const data = this.process_line(line, vault, settings);
 			if (data) {
-				return `\n# View #\n${data}`;
+				return data;
 			}
 		}
 		return undefined;
@@ -699,7 +698,7 @@ class IvreSearchView extends IvreSearch {
 			if (data) {
 				yield {
 					address: JSON.parse(line).addr,
-					data: `\n# View #\n${data}`,
+					data: data,
 				};
 			}
 		}
@@ -720,7 +719,7 @@ class IvreSearchView extends IvreSearch {
 			if (data) {
 				yield {
 					address: JSON.parse(line).addr,
-					data: `\n# View #\n${data}`,
+					data: data,
 				};
 			}
 		}
@@ -741,7 +740,7 @@ class IvreSearchView extends IvreSearch {
 			if (data) {
 				yield {
 					address: JSON.parse(line).addr,
-					data: `\n# View #\n${data}`,
+					data: data,
 				};
 			}
 		}
