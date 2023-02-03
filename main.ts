@@ -7,6 +7,7 @@ import {
 	PluginSettingTab,
 	Setting,
 	TFile,
+	TFolder,
 	Vault,
 } from "obsidian";
 import {
@@ -173,7 +174,6 @@ function create_note(vault: Vault, fname: string, content: string) {
 			if (!(file instanceof TFile)) {
 				console.log(`Cannot recreate ${fname}`);
 			} else {
-				console.log(`Re-creating ${fname}`);
 				vault.modify(file, content);
 			}
 		} else {
@@ -518,6 +518,27 @@ function ivre_handle_mac(
 		return `${settings.base_directory}/MAC/${mac.replace(/:/g, "")}.md`;
 	}
 	return undefined;
+}
+function ivre_refresh_data(vault: Vault, settings: IvrePluginSettings) {
+	const base = vault.getAbstractFileByPath(settings.base_directory);
+	if (!(base instanceof TFolder)) {
+		console.log(`IVRE's base is not a folder: ${base}`);
+		return;
+	}
+	const sub_dirs = Object.fromEntries(base.children.map((x) => [x.name, x]));
+	if (sub_dirs.IP instanceof TFolder) {
+		for (const subf of sub_dirs.IP.children) {
+			if (subf instanceof TFile) {
+				ivre_handle_address(
+					subf.basename
+						.replace(/_([0-9]+)$/, "/$1")
+						.replace(/_/g, ":"),
+					vault,
+					settings
+				);
+			}
+		}
+	}
 }
 
 class IvreSearch {}
@@ -961,6 +982,14 @@ export default class IvrePlugin extends Plugin {
 					this.app.vault,
 					view.file
 				);
+			},
+		});
+
+		this.addCommand({
+			id: "refresh-data",
+			name: "Refresh IVRE data",
+			callback: () => {
+				ivre_refresh_data(this.app.vault, this.settings);
 			},
 		});
 
