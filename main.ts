@@ -157,12 +157,29 @@ function ivre_guess_type(element: string, base_directory: string): ElementType {
 	return ElementType.Unknown;
 }
 
-function create_folder(vault: Vault, base: string) {
-	try {
-		vault.createFolder(base);
-	} catch (e) {
-		/* continue regardless of error */
-	}
+function create_folder(vault: Vault, folder: string) {
+	vault.createFolder(folder).catch((e) => {
+		/* continue regardless of File already exists error */
+		if (e.message !== "Folder already exists.") {
+			throw e;
+		}
+	});
+}
+function create_note(vault: Vault, fname: string, content: string) {
+	vault.create(fname, content).catch((e) => {
+		if (e.message === "File already exists.") {
+			// file already exists
+			const file = vault.getAbstractFileByPath(fname);
+			if (!(file instanceof TFile)) {
+				console.log(`Cannot recreate ${fname}`);
+			} else {
+				console.log(`Re-creating ${fname}`);
+				vault.modify(file, content);
+			}
+		} else {
+			throw e;
+		}
+	});
 }
 function flag_emoji(country_code: string): string {
 	return country_code
@@ -210,7 +227,7 @@ function ivre_create_as(
 	const base = `${base_directory}/AS`;
 	create_folder(vault, base);
 	const fname = `${base}/AS${num}.md`;
-	vault.create(fname, `AS${num} - ${name}\n`);
+	create_note(vault, fname, `AS${num} - ${name}\n`);
 }
 function ivre_create_country(
 	code: string,
@@ -221,7 +238,7 @@ function ivre_create_country(
 	const base = `${base_directory}/Country`;
 	create_folder(vault, base);
 	const fname = `${base}/${code}.md`;
-	vault.create(fname, `${flag_emoji(code)} - ${code} - ${name}\n`);
+	create_note(vault, fname, `${flag_emoji(code)} - ${code} - ${name}\n`);
 }
 function ivre_create_category(
 	category: string,
@@ -231,7 +248,7 @@ function ivre_create_category(
 	const base = `${base_directory}/Category`;
 	create_folder(vault, base);
 	const fname = `${base}/${category}.md`;
-	vault.create(fname, `Category ${category}\n`);
+	create_note(vault, fname, `Category ${category}\n`);
 }
 function ivre_create_mac(mac: string, vault: Vault, base_directory: string) {
 	const base = `${base_directory}/MAC`;
@@ -246,7 +263,7 @@ function ivre_create_mac(mac: string, vault: Vault, base_directory: string) {
 	if ("manufacturer_name" in data) {
 		content += `- Manufacturer name: ${data.manufacturer_name}\n`;
 	}
-	vault.create(fname, content);
+	create_note(vault, fname, content);
 }
 function ivre_create_hostname(
 	name: string,
@@ -263,13 +280,13 @@ function ivre_create_hostname(
 		ivre_create_hostname(parent, vault, base_directory);
 		answer += `- Parent: [[${base_directory}/Hostname/${parent}|${parent}]]\n`;
 	}
-	vault.create(fname, answer);
+	create_note(vault, fname, answer);
 }
 function ivre_create_hash(hash: string, vault: Vault, base_directory: string) {
 	const base = `${base_directory}/Hash`;
 	create_folder(vault, base);
 	const fname = `${base}/${hash}.md`;
-	vault.create(fname, `${hash}`);
+	create_note(vault, fname, `${hash}`);
 }
 function ivre_create_pubkey(
 	pubkey: IvrePubkey,
@@ -297,7 +314,7 @@ function ivre_create_pubkey(
 		ivre_create_hash(hash_value, vault, base_directory);
 		answer += `- ${hashtype.toUpperCase()}: [[${base_directory}/Hash/${hash_value}.md|${hash_value}]]\n`;
 	}
-	vault.create(fname, answer);
+	create_note(vault, fname, answer);
 }
 function ivre_create_certificate(
 	cert: IvreCertificate,
@@ -321,7 +338,7 @@ function ivre_create_certificate(
 		ivre_create_pubkey(cert.pubkey, vault, base_directory);
 		answer += `- Public key: [[${base_directory}/Pubkey/${cert.pubkey.sha256}.md|${cert.pubkey.sha256}]]\n`;
 	}
-	vault.create(fname, answer);
+	create_note(vault, fname, answer);
 }
 function ivre_handle_address(
 	address: string,
@@ -345,7 +362,7 @@ function ivre_handle_address(
 		const base = `${settings.base_directory}/IP`;
 		create_folder(vault, base);
 		const fname = `${base}/${address.replace(/:/g, "_")}.md`;
-		vault.create(fname, data.join("\n"));
+		create_note(vault, fname, data.join("\n"));
 		return fname;
 	}
 	return undefined;
@@ -373,7 +390,8 @@ function ivre_handle_hostname(
 			data.push(result.data);
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				data.join("\n")
 			);
@@ -383,7 +401,8 @@ function ivre_handle_hostname(
 		for (const result of inst.process_hostname(hostname, vault, settings)) {
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				result.data
 			);
@@ -417,7 +436,8 @@ function ivre_handle_network(
 			data.push(result.data);
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				data.join("\n")
 			);
@@ -427,7 +447,8 @@ function ivre_handle_network(
 		for (const result of inst.process_network(network, vault, settings)) {
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				result.data
 			);
@@ -446,7 +467,7 @@ function ivre_handle_network(
 				)}|${addr}]]`;
 			})
 			.join("\n");
-		vault.create(fname, `Network: ${network}\n${addr_list}\n`);
+		create_note(vault, fname, `Network: ${network}\n${addr_list}\n`);
 		return fname;
 	}
 	return undefined;
@@ -474,7 +495,8 @@ function ivre_handle_mac(
 			data.push(result.data);
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				data.join("\n")
 			);
@@ -484,7 +506,8 @@ function ivre_handle_mac(
 		for (const result of inst.process_mac(mac, vault, settings)) {
 			const base = `${settings.base_directory}/IP`;
 			create_folder(vault, base);
-			vault.create(
+			create_note(
+				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
 				result.data
 			);
