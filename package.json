@@ -14,7 +14,7 @@
 	"devDependencies": {
 		"@types/node": "^18.11.18",
 		"@typescript-eslint/eslint-plugin": "5.50.0",
-		"@typescript-eslint/parser": "5.50.0",
+		"@typescript-eslint/parser": "5.51.0",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.17.5",
 		"ip-address-validator": "1.0.9",
