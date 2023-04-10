@@ -21,7 +21,7 @@
 		"is-valid-hostname": "1.0.2",
 		"obsidian": "latest",
 		"tslib": "2.5.0",
-		"typescript": "5.0.3"
+		"typescript": "5.0.4"
 	},
 	"dependencies": {
 		"npm-check-updates": "^16.10.7",
