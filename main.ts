@@ -49,6 +49,13 @@ interface IvreCertificate {
 	pubkey: IvrePubkey;
 }
 
+interface IvreJa3Client {
+	md5: string;
+	sha1?: string;
+	sha256?: string;
+	raw?: string;
+}
+
 interface IvrePubkey {
 	md5?: string;
 	sha1?: string;
@@ -67,7 +74,10 @@ interface IvreScript {
 	output: string;
 	// @ts-ignore
 	"ssl-cert"?: IvreCertificate[];
-
+	// @ts-ignore
+	"ssl-ja3-client"?: IvreJa3Client[];
+	// @ts-ignore
+	"http-user-agent"?: string[];
 	[structured: string]: JSON;
 }
 
@@ -337,6 +347,27 @@ function ivre_create_certificate(
 	if (cert.pubkey) {
 		ivre_create_pubkey(cert.pubkey, vault, base_directory);
 		answer += `- Public key: [[${base_directory}/Pubkey/${cert.pubkey.sha256}.md|${cert.pubkey.sha256}]]\n`;
+	}
+	create_note(vault, fname, answer);
+}
+function ivre_create_ja3(
+	ja3client: IvreJa3Client,
+	vault: Vault,
+	base_directory: string
+) {
+	const base = `${base_directory}/JA3`;
+	create_folder(vault, base);
+	const fname = `${base}/${ja3client.md5}.md`;
+	let answer = "JA3\n";
+	answer += "\n# Raw value #\n";
+	answer += `\`\`\`\n${ja3client.raw}\n\`\`\`\n`;
+	answer += "\n# Hashes #\n";
+	for (const hashtype of ["md5", "sha1", "sha256"]) {
+		if (ja3client[hashtype]) {
+			const hash_value = ja3client[hashtype];
+			ivre_create_hash(hash_value, vault, base_directory);
+			answer += `- ${hashtype.toUpperCase()}: [[${base_directory}/Hash/${hash_value}.md|${hash_value}]]\n`;
+		}
 	}
 	create_note(vault, fname, answer);
 }
@@ -652,8 +683,49 @@ class IvreSearchView extends IvreSearch {
 			answer += `\n# Hostnames #\n${tmp_answer}`;
 		}
 		tmp_answer = "";
+		let tmp_answer_host = "";
 		(data.ports || []).forEach((port: IvrePort) => {
 			if (port.port === -1) {
+				(port.scripts || []).forEach((script: IvreScript) => {
+					if (
+						script.id == "ssl-ja3-client" &&
+						script["ssl-ja3-client"] &&
+						script["ssl-ja3-client"].length
+					) {
+						tmp_answer_host += "\n## JA3 Client fingerprints ##\n";
+						script["ssl-ja3-client"].forEach(
+							(ja3client: IvreJa3Client) => {
+								if (ja3client.raw) {
+									ivre_create_ja3(
+										ja3client,
+										vault,
+										settings.base_directory
+									);
+								} else {
+									// TODO: test if JA3 exists
+									ivre_create_hash(
+										ja3client.md5,
+										vault,
+										settings.base_directory
+									);
+								}
+								tmp_answer_host += `- [[${settings.base_directory}/JA3/${ja3client.md5}.md|${ja3client.md5}]]\n`;
+							}
+						);
+					}
+					if (
+						script.id == "http-user-agent" &&
+						script["http-user-agent"] &&
+						script["http-user-agent"].length
+					) {
+						tmp_answer_host += "\n## HTTP User-Agents ##\n";
+						script["http-user-agent"].forEach(
+							(useragent: string) => {
+								tmp_answer_host += `- \`${useragent}\`\n`;
+							}
+						);
+					}
+				});
 				return;
 			}
 			tmp_answer += `\n## ${port.protocol}/${port.port} ##\n`;
@@ -700,6 +772,12 @@ class IvreSearchView extends IvreSearch {
 			answer += `\n# Ports #\n${tmp_answer.substring(
 				0,
 				tmp_answer.length - 1
+			)}`;
+		}
+		if (tmp_answer_host) {
+			answer += `\n# Host details #\n${tmp_answer_host.substring(
+				0,
+				tmp_answer_host.length - 1
 			)}`;
 		}
 		return answer;
