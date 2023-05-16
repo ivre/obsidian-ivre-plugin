@@ -49,11 +49,15 @@ interface IvreCertificate {
 	pubkey: IvrePubkey;
 }
 
-interface IvreJa3Client {
+interface IvreJa3 {
 	md5: string;
 	sha1?: string;
 	sha256?: string;
 	raw?: string;
+}
+
+interface IvreJa3Server extends IvreJa3 {
+	client?: IvreJa3;
 }
 
 interface IvrePubkey {
@@ -75,7 +79,9 @@ interface IvreScript {
 	// @ts-ignore
 	"ssl-cert"?: IvreCertificate[];
 	// @ts-ignore
-	"ssl-ja3-client"?: IvreJa3Client[];
+	"ssl-ja3-client"?: IvreJa3[];
+	// @ts-ignore
+	"ssl-ja3-server"?: IvreJa3Server[];
 	// @ts-ignore
 	"http-user-agent"?: string[];
 	[structured: string]: JSON;
@@ -350,21 +356,17 @@ function ivre_create_certificate(
 	}
 	create_note(vault, fname, answer);
 }
-function ivre_create_ja3(
-	ja3client: IvreJa3Client,
-	vault: Vault,
-	base_directory: string
-) {
+function ivre_create_ja3(ja3: IvreJa3, vault: Vault, base_directory: string) {
 	const base = `${base_directory}/JA3`;
 	create_folder(vault, base);
-	const fname = `${base}/${ja3client.md5}.md`;
+	const fname = `${base}/${ja3.md5}.md`;
 	let answer = "JA3\n";
 	answer += "\n# Raw value #\n";
-	answer += `\`\`\`\n${ja3client.raw}\n\`\`\`\n`;
+	answer += `\`\`\`\n${ja3.raw}\n\`\`\`\n`;
 	answer += "\n# Hashes #\n";
 	for (const hashtype of ["md5", "sha1", "sha256"]) {
-		if (ja3client[hashtype]) {
-			const hash_value = ja3client[hashtype];
+		if (ja3[hashtype]) {
+			const hash_value = ja3[hashtype];
 			ivre_create_hash(hash_value, vault, base_directory);
 			answer += `- ${hashtype.toUpperCase()}: [[${base_directory}/Hash/${hash_value}.md|${hash_value}]]\n`;
 		}
@@ -693,25 +695,23 @@ class IvreSearchView extends IvreSearch {
 						script["ssl-ja3-client"].length
 					) {
 						tmp_answer_host += "\n## JA3 Client fingerprints ##\n";
-						script["ssl-ja3-client"].forEach(
-							(ja3client: IvreJa3Client) => {
-								if (ja3client.raw) {
-									ivre_create_ja3(
-										ja3client,
-										vault,
-										settings.base_directory
-									);
-								} else {
-									// TODO: test if JA3 exists
-									ivre_create_hash(
-										ja3client.md5,
-										vault,
-										settings.base_directory
-									);
-								}
-								tmp_answer_host += `- [[${settings.base_directory}/JA3/${ja3client.md5}.md|${ja3client.md5}]]\n`;
+						script["ssl-ja3-client"].forEach((ja3: IvreJa3) => {
+							if (ja3.raw) {
+								ivre_create_ja3(
+									ja3,
+									vault,
+									settings.base_directory
+								);
+							} else {
+								// TODO: test if JA3 exists
+								ivre_create_hash(
+									ja3.md5,
+									vault,
+									settings.base_directory
+								);
 							}
-						);
+							tmp_answer_host += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]]\n`;
+						});
 					}
 					if (
 						script.id == "http-user-agent" &&
@@ -729,7 +729,9 @@ class IvreSearchView extends IvreSearch {
 				return;
 			}
 			tmp_answer += `\n## ${port.protocol}/${port.port} ##\n`;
-			tmp_answer += `- Status: ${port.state_state}\n`;
+			tmp_answer += `- ${
+				port.state_state.startsWith("open") ? "✅" : "❌"
+			} Status: ${port.state_state}\n`;
 			if (port.service_name) {
 				tmp_answer += `- Service: ${port.service_name}`;
 				if (port.service_product) {
@@ -761,6 +763,48 @@ class IvreSearchView extends IvreSearch {
 							);
 						}
 					);
+				}
+				if (
+					script.id == "ssl-ja3-server" &&
+					script["ssl-ja3-server"] &&
+					script["ssl-ja3-server"].length
+				) {
+					tmp_answer += "\n### JA3 Server fingerprints ###\n";
+					script["ssl-ja3-server"].forEach((ja3: IvreJa3Server) => {
+						if (ja3.raw) {
+							ivre_create_ja3(
+								ja3,
+								vault,
+								settings.base_directory
+							);
+						} else {
+							// TODO: test if JA3 exists
+							ivre_create_hash(
+								ja3.md5,
+								vault,
+								settings.base_directory
+							);
+						}
+						if (ja3.client) {
+							if (ja3.client.raw) {
+								ivre_create_ja3(
+									ja3.client,
+									vault,
+									settings.base_directory
+								);
+							} else {
+								// TODO: test if JA3 exists
+								ivre_create_hash(
+									ja3.client.md5,
+									vault,
+									settings.base_directory
+								);
+							}
+							tmp_answer += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]] - [[${settings.base_directory}/JA3/${ja3.client.md5}.md|${ja3.client.md5}]]\n`;
+						} else {
+							tmp_answer += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]]\n`;
+						}
+					});
 				}
 			});
 			if (port.screenshot === "field" && port.screendata) {
