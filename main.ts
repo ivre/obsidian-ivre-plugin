@@ -16,6 +16,7 @@ import {
 	isIPV6Address,
 } from "ip-address-validator";
 import { spawn, spawnSync } from "child_process";
+import * as crypto from "crypto";
 
 interface IvrePluginSettings {
 	use_data: boolean;
@@ -71,6 +72,13 @@ interface IvrePubkey {
 	raw: string;
 }
 
+interface IvreSshPubkey {
+	fingerprint?: string;
+	key: string;
+	type: string;
+	bits?: number;
+}
+
 interface IvreScript {
 	// @ts-ignore
 	id: string;
@@ -84,6 +92,8 @@ interface IvreScript {
 	"ssl-ja3-server"?: IvreJa3Server[];
 	// @ts-ignore
 	"http-user-agent"?: string[];
+	// @ts-ignore
+	"ssh-hostkey"?: IvreSshPubkey[];
 	[structured: string]: JSON;
 }
 
@@ -315,6 +325,7 @@ function ivre_create_pubkey(
 	let answer = "Public key\n";
 	answer += "\n# Information #\n";
 	answer += `- Type: ${pubkey.type}\n`;
+	answer += `- Key: ${pubkey.raw}\n`;
 	if (pubkey.bits) {
 		answer += `- Bits: ${pubkey.bits}\n`;
 	}
@@ -331,6 +342,29 @@ function ivre_create_pubkey(
 		answer += `- ${hashtype.toUpperCase()}: [[${base_directory}/Hash/${hash_value}.md|${hash_value}]]\n`;
 	}
 	create_note(vault, fname, answer);
+}
+function ivre_create_pubkey_ssh(
+	pubkey: IvreSshPubkey,
+	vault: Vault,
+	base_directory: string
+) {
+	const raw = Buffer.from(pubkey.key, "base64");
+	const sha256 = crypto.createHash("sha256").update(raw).digest("hex");
+	ivre_create_pubkey(
+		{
+			type: pubkey.type.startsWith("ssh-")
+				? pubkey.type.substring(4)
+				: pubkey.type,
+			raw: pubkey.key,
+			md5: crypto.createHash("md5").update(raw).digest("hex"),
+			sha1: crypto.createHash("sha1").update(raw).digest("hex"),
+			sha256: sha256,
+			bits: pubkey.bits,
+		},
+		vault,
+		base_directory
+	);
+	return sha256;
 }
 function ivre_create_certificate(
 	cert: IvreCertificate,
@@ -763,8 +797,7 @@ class IvreSearchView extends IvreSearch {
 							);
 						}
 					);
-				}
-				if (
+				} else if (
 					script.id == "ssl-ja3-server" &&
 					script["ssl-ja3-server"] &&
 					script["ssl-ja3-server"].length
@@ -804,6 +837,20 @@ class IvreSearchView extends IvreSearch {
 						} else {
 							tmp_answer += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]]\n`;
 						}
+					});
+				} else if (
+					script.id == "ssh-hostkey" &&
+					script["ssh-hostkey"] &&
+					script["ssh-hostkey"].length
+				) {
+					tmp_answer += "\n### SSH Host keys ###\n";
+					script["ssh-hostkey"].forEach((key: IvreSshPubkey) => {
+						const sha256 = ivre_create_pubkey_ssh(
+							key,
+							vault,
+							settings.base_directory
+						);
+						tmp_answer += `- [[${settings.base_directory}/Pubkey/${sha256}.md|${sha256}]]\n`;
 					});
 				}
 			});
