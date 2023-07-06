@@ -48,7 +48,7 @@ jobs:
 
     - run: npm install
 
-    - run: ./node_modules/prettier/bin-prettier.js --check main.ts
+    - run: ./node_modules/prettier/bin/prettier.cjs --check main.ts
 
     - run: ./node_modules/eslint/bin/eslint.js main.ts
 

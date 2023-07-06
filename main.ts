@@ -176,7 +176,7 @@ function ivre_guess_type(element: string, base_directory: string): ElementType {
 		return ElementType.MacAddress;
 	}
 	const ivre_link = new RegExp(
-		`^\\[\\[${base_directory}/(IP|Network|Hostname|MAC)/[^|\\]]+\\|[^\\]]+\\]\\]$`
+		`^\\[\\[${base_directory}/(IP|Network|Hostname|MAC)/[^|\\]]+\\|[^\\]]+\\]\\]$`,
 	);
 	if (ivre_link.test(element)) {
 		return ElementType.IvreLink;
@@ -211,7 +211,7 @@ function flag_emoji(country_code: string): string {
 	return country_code
 		.toUpperCase()
 		.replace(/[A-Z]/g, (char) =>
-			String.fromCodePoint(127397 + char.charCodeAt(0))
+			String.fromCodePoint(127397 + char.charCodeAt(0)),
 		);
 }
 function tag_type(tag: IvreTag): string {
@@ -248,7 +248,7 @@ function ivre_create_as(
 	num: number,
 	name: string,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/AS`;
 	create_folder(vault, base);
@@ -259,7 +259,7 @@ function ivre_create_country(
 	code: string,
 	name: string,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/Country`;
 	create_folder(vault, base);
@@ -269,7 +269,7 @@ function ivre_create_country(
 function ivre_create_category(
 	category: string,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/Category`;
 	create_folder(vault, base);
@@ -294,7 +294,7 @@ function ivre_create_mac(mac: string, vault: Vault, base_directory: string) {
 function ivre_create_hostname(
 	name: string,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/Hostname`;
 	create_folder(vault, base);
@@ -317,7 +317,7 @@ function ivre_create_hash(hash: string, vault: Vault, base_directory: string) {
 function ivre_create_pubkey(
 	pubkey: IvrePubkey,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/Pubkey`;
 	create_folder(vault, base);
@@ -346,7 +346,7 @@ function ivre_create_pubkey(
 function ivre_create_pubkey_ssh(
 	pubkey: IvreSshPubkey,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const raw = Buffer.from(pubkey.key, "base64");
 	const sha256 = crypto.createHash("sha256").update(raw).digest("hex");
@@ -362,14 +362,14 @@ function ivre_create_pubkey_ssh(
 			bits: pubkey.bits,
 		},
 		vault,
-		base_directory
+		base_directory,
 	);
 	return sha256;
 }
 function ivre_create_certificate(
 	cert: IvreCertificate,
 	vault: Vault,
-	base_directory: string
+	base_directory: string,
 ) {
 	const base = `${base_directory}/Certificate`;
 	create_folder(vault, base);
@@ -410,7 +410,7 @@ function ivre_create_ja3(ja3: IvreJa3, vault: Vault, base_directory: string) {
 function ivre_handle_address(
 	address: string,
 	vault: Vault,
-	settings: IvrePluginSettings
+	settings: IvrePluginSettings,
 ): string | undefined {
 	const data = [];
 	if (settings.use_data) {
@@ -437,7 +437,7 @@ function ivre_handle_address(
 function ivre_handle_hostname(
 	hostname: string,
 	vault: Vault,
-	settings: IvrePluginSettings
+	settings: IvrePluginSettings,
 ): string | undefined {
 	const inst = new IvreSearchView();
 	let one_answer = false;
@@ -449,7 +449,7 @@ function ivre_handle_hostname(
 			const data_result = inst_data.process_ipaddress(
 				result.address,
 				vault,
-				settings
+				settings,
 			);
 			if (data_result) {
 				data.push(data_result);
@@ -460,7 +460,7 @@ function ivre_handle_hostname(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n")
+				data.join("\n"),
 			);
 			one_answer = true;
 		}
@@ -471,7 +471,7 @@ function ivre_handle_hostname(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data
+				result.data,
 			);
 			one_answer = true;
 		}
@@ -484,7 +484,7 @@ function ivre_handle_hostname(
 function ivre_handle_network(
 	network: string,
 	vault: Vault,
-	settings: IvrePluginSettings
+	settings: IvrePluginSettings,
 ): string | undefined {
 	const inst = new IvreSearchView();
 	const answers = [];
@@ -495,7 +495,7 @@ function ivre_handle_network(
 			const data_result = inst_data.process_ipaddress(
 				result.address,
 				vault,
-				settings
+				settings,
 			);
 			if (data_result) {
 				data.push(data_result);
@@ -506,7 +506,7 @@ function ivre_handle_network(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n")
+				data.join("\n"),
 			);
 			answers.push(result.address);
 		}
@@ -517,7 +517,7 @@ function ivre_handle_network(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data
+				result.data,
 			);
 			answers.push(result.address);
 		}
@@ -530,7 +530,7 @@ function ivre_handle_network(
 			.map((addr) => {
 				return `- [[${settings.base_directory}/IP/${addr.replace(
 					/:/g,
-					"_"
+					"_",
 				)}|${addr}]]`;
 			})
 			.join("\n");
@@ -542,7 +542,7 @@ function ivre_handle_network(
 function ivre_handle_mac(
 	mac: string,
 	vault: Vault,
-	settings: IvrePluginSettings
+	settings: IvrePluginSettings,
 ): string | undefined {
 	const inst = new IvreSearchView();
 	let one_answer = false;
@@ -554,7 +554,7 @@ function ivre_handle_mac(
 			const data_result = inst_data.process_ipaddress(
 				result.address,
 				vault,
-				settings
+				settings,
 			);
 			if (data_result) {
 				data.push(data_result);
@@ -565,7 +565,7 @@ function ivre_handle_mac(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n")
+				data.join("\n"),
 			);
 			one_answer = true;
 		}
@@ -576,7 +576,7 @@ function ivre_handle_mac(
 			create_note(
 				vault,
 				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data
+				result.data,
 			);
 			one_answer = true;
 		}
@@ -601,7 +601,7 @@ function ivre_refresh_data(vault: Vault, settings: IvrePluginSettings) {
 						.replace(/_([0-9]+)$/, "/$1")
 						.replace(/_/g, ":"),
 					vault,
-					settings
+					settings,
 				);
 			}
 		}
@@ -614,7 +614,7 @@ class IvreSearchData extends IvreSearch {
 	process_ipaddress(
 		address: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): string | undefined {
 		const options = ["ipdata", "--json"];
 		if (settings.db_url_data) {
@@ -629,7 +629,7 @@ class IvreSearchData extends IvreSearch {
 				data.as_num,
 				data.as_name || "-",
 				vault,
-				settings.base_directory
+				settings.base_directory,
 			);
 			answer += `> ## Autonomous System ##\n> [[${
 				settings.base_directory
@@ -642,7 +642,7 @@ class IvreSearchData extends IvreSearch {
 				data.country_code,
 				data.country_name || "-",
 				vault,
-				settings.base_directory
+				settings.base_directory,
 			);
 			answer += `> ## Geography ##\n> Country: [[${
 				settings.base_directory
@@ -671,7 +671,7 @@ class IvreSearchView extends IvreSearch {
 	process_line(
 		line: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): string | undefined {
 		if (!line) {
 			return;
@@ -686,7 +686,7 @@ class IvreSearchView extends IvreSearch {
 			tmp_answer += `> [!${tag_type(tag)}]- ${
 				tag.value
 			}\n> #${tag.value.replace(/ /g, "_")}\n> ${tag.info.join(
-				"\n> "
+				"\n> ",
 			)}\n\n`;
 		});
 		if (tmp_answer) {
@@ -734,14 +734,14 @@ class IvreSearchView extends IvreSearch {
 								ivre_create_ja3(
 									ja3,
 									vault,
-									settings.base_directory
+									settings.base_directory,
 								);
 							} else {
 								// TODO: test if JA3 exists
 								ivre_create_hash(
 									ja3.md5,
 									vault,
-									settings.base_directory
+									settings.base_directory,
 								);
 							}
 							tmp_answer_host += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]]\n`;
@@ -756,7 +756,7 @@ class IvreSearchView extends IvreSearch {
 						script["http-user-agent"].forEach(
 							(useragent: string) => {
 								tmp_answer_host += `- \`${useragent}\`\n`;
-							}
+							},
 						);
 					}
 				});
@@ -793,9 +793,9 @@ class IvreSearchView extends IvreSearch {
 							ivre_create_certificate(
 								cert,
 								vault,
-								settings.base_directory
+								settings.base_directory,
 							);
-						}
+						},
 					);
 				} else if (
 					script.id == "ssl-ja3-server" &&
@@ -808,14 +808,14 @@ class IvreSearchView extends IvreSearch {
 							ivre_create_ja3(
 								ja3,
 								vault,
-								settings.base_directory
+								settings.base_directory,
 							);
 						} else {
 							// TODO: test if JA3 exists
 							ivre_create_hash(
 								ja3.md5,
 								vault,
-								settings.base_directory
+								settings.base_directory,
 							);
 						}
 						if (ja3.client) {
@@ -823,14 +823,14 @@ class IvreSearchView extends IvreSearch {
 								ivre_create_ja3(
 									ja3.client,
 									vault,
-									settings.base_directory
+									settings.base_directory,
 								);
 							} else {
 								// TODO: test if JA3 exists
 								ivre_create_hash(
 									ja3.client.md5,
 									vault,
-									settings.base_directory
+									settings.base_directory,
 								);
 							}
 							tmp_answer += `- [[${settings.base_directory}/JA3/${ja3.md5}.md|${ja3.md5}]] - [[${settings.base_directory}/JA3/${ja3.client.md5}.md|${ja3.client.md5}]]\n`;
@@ -848,7 +848,7 @@ class IvreSearchView extends IvreSearch {
 						const sha256 = ivre_create_pubkey_ssh(
 							key,
 							vault,
-							settings.base_directory
+							settings.base_directory,
 						);
 						tmp_answer += `- [[${settings.base_directory}/Pubkey/${sha256}.md|${sha256}]]\n`;
 					});
@@ -862,13 +862,13 @@ class IvreSearchView extends IvreSearch {
 		if (tmp_answer) {
 			answer += `\n# Ports #\n${tmp_answer.substring(
 				0,
-				tmp_answer.length - 1
+				tmp_answer.length - 1,
 			)}`;
 		}
 		if (tmp_answer_host) {
 			answer += `\n# Host details #\n${tmp_answer_host.substring(
 				0,
-				tmp_answer_host.length - 1
+				tmp_answer_host.length - 1,
 			)}`;
 		}
 		return answer;
@@ -876,7 +876,7 @@ class IvreSearchView extends IvreSearch {
 	process_ipaddress(
 		address: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): string | undefined {
 		const options = ["view", "--json", "--limit", "1"];
 		if (settings.db_url_view) {
@@ -895,7 +895,7 @@ class IvreSearchView extends IvreSearch {
 	*process_hostname(
 		hostname: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): Generator<IvreMarkdownResult, void, unknown> {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
@@ -903,7 +903,7 @@ class IvreSearchView extends IvreSearch {
 		}
 		options.push(
 			settings.use_subdomains ? "--domain" : "--hostname",
-			hostname
+			hostname,
 		);
 		const ivre_view = spawnSync("ivre", options);
 		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
@@ -919,7 +919,7 @@ class IvreSearchView extends IvreSearch {
 	*process_network(
 		network: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): Generator<IvreMarkdownResult, void, unknown> {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
@@ -940,7 +940,7 @@ class IvreSearchView extends IvreSearch {
 	*process_mac(
 		mac: string,
 		vault: Vault,
-		settings: IvrePluginSettings
+		settings: IvrePluginSettings,
 	): Generator<IvreMarkdownResult, void, unknown> {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
@@ -964,7 +964,7 @@ function ivre_analyze_selection(
 	settings: IvrePluginSettings,
 	editor: Editor,
 	vault: Vault,
-	active_file: TFile | null
+	active_file: TFile | null,
 ) {
 	const links: { element: string; link: string }[] = [];
 	let content_data = editor.getSelection();
@@ -1051,13 +1051,13 @@ function ivre_analyze_selection(
 			const expr = new RegExp(
 				`(\\s|^)${replacement.element.replace(
 					/[.*+?^${}()|[\]\\]/g,
-					"\\$&"
+					"\\$&",
 				)}(\\s|$)`,
-				"g"
+				"g",
 			);
 			content_data = content_data.replace(
 				expr,
-				`$1[[${replacement.link}|${replacement.element}]]$2`
+				`$1[[${replacement.link}|${replacement.element}]]$2`,
 			);
 		});
 		editor.replaceSelection(content_data);
@@ -1085,7 +1085,7 @@ export default class IvrePlugin extends Plugin {
 					switch (view_mode) {
 						case "preview":
 							new Notice(
-								"Call me from a MarkdownView in source mode!"
+								"Call me from a MarkdownView in source mode!",
 							);
 							break;
 						case "source":
@@ -1096,22 +1096,22 @@ export default class IvrePlugin extends Plugin {
 									this.settings,
 									view.editor,
 									this.app.vault,
-									view.file
+									view.file,
 								);
 							} else {
 								new Notice(
-									"Cannot find .editor in current view!"
+									"Cannot find .editor in current view!",
 								);
 							}
 							break;
 						default:
 							new Notice(
-								"Call me from a MarkdownView in source mode!"
+								"Call me from a MarkdownView in source mode!",
 							);
 							break;
 					}
 				}
-			}
+			},
 		);
 		// Perform additional things with the ribbon
 		ribbonIconEl.addClass("my-plugin-ribbon-class");
@@ -1132,7 +1132,7 @@ export default class IvrePlugin extends Plugin {
 		ivre_version.on("close", (code: number) => {
 			if (code !== 0) {
 				statusBarItemEl.setText(
-					`IVRE --version exited with code ${code}`
+					`IVRE --version exited with code ${code}`,
 				);
 			}
 		});
@@ -1149,7 +1149,7 @@ export default class IvrePlugin extends Plugin {
 					this.settings,
 					editor,
 					this.app.vault,
-					view.file
+					view.file,
 				);
 			},
 		});
@@ -1172,7 +1172,7 @@ export default class IvrePlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData()
+			await this.loadData(),
 		);
 	}
 
@@ -1204,7 +1204,7 @@ class IvreSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.use_data)
 					.onChange(async (value) => {
 						this.plugin.settings.use_data = value;
-					})
+					}),
 			);
 		new Setting(containerEl)
 			.setName("Use subdomains")
@@ -1215,12 +1215,12 @@ class IvreSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						setting_url_view.setDisabled(!value);
 						this.plugin.settings.use_subdomains = value;
-					})
+					}),
 			);
 		new Setting(containerEl)
 			.setName("URL for data")
 			.setDesc(
-				"URL for IVRE database for data (Maxmind GeoIP). Leave empty to use the system default."
+				"URL for IVRE database for data (Maxmind GeoIP). Leave empty to use the system default.",
 			)
 			.addText((text) =>
 				text
@@ -1230,12 +1230,12 @@ class IvreSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.db_url_data = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 		const setting_url_view = new Setting(containerEl)
 			.setName("URL for view")
 			.setDesc(
-				"URL for IVRE database for view (mixed from passive & scan). Leave empty to use the system default."
+				"URL for IVRE database for view (mixed from passive & scan). Leave empty to use the system default.",
 			)
 			.addText((text) =>
 				text
@@ -1244,7 +1244,7 @@ class IvreSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.db_url_view = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 		new Setting(containerEl)
 			.setName("Base directory")
@@ -1256,7 +1256,7 @@ class IvreSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.base_directory = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 	}
 }
