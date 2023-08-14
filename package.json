@@ -17,7 +17,6 @@
 		"@typescript-eslint/parser": "6.3.0",
 		"builtin-modules": "3.3.0",
 		"esbuild": "0.19.2",
-		"ip-address-validator": "1.0.10",
 		"is-valid-hostname": "1.0.2",
 		"obsidian": "latest",
 		"tslib": "2.6.1",

@@ -10,13 +10,9 @@ import {
 	TFolder,
 	Vault,
 } from "obsidian";
-import {
-	isIPAddress,
-	isIPV4Address,
-	isIPV6Address,
-} from "ip-address-validator";
 import { spawn, spawnSync } from "child_process";
 import * as crypto from "crypto";
+import * as net from "net";
 
 interface IvrePluginSettings {
 	use_data: boolean;
@@ -154,17 +150,17 @@ const MAC_ADDRESS =
 	/^[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}$/i;
 
 function ivre_guess_type(element: string, base_directory: string): ElementType {
-	if (isIPAddress(element)) {
+	if (net.isIP(element)) {
 		return ElementType.IpAddress;
 	}
 	if (/[^/]+\/\d+$/.test(element)) {
 		const [addr, mask] = element.split("/", 2);
 		const mask_n = parseInt(mask);
 		if (0 <= mask_n) {
-			if (isIPV4Address(addr) && mask_n <= 32) {
+			if (net.isIPv4(addr) && mask_n <= 32) {
 				return ElementType.IpNetwork;
 			}
-			if (isIPV6Address(addr) && mask_n <= 128) {
+			if (net.isIPv6(addr) && mask_n <= 128) {
 				return ElementType.IpNetwork;
 			}
 		}
