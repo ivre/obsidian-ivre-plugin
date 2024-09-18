@@ -11,6 +11,7 @@ import {
 	Vault,
 } from "obsidian";
 import { spawn, spawnSync } from "child_process";
+import { createInterface } from "readline";
 import * as crypto from "crypto";
 import * as net from "net";
 
@@ -112,20 +113,38 @@ interface IvreTag {
 	info: string[];
 }
 
+interface IvreIpInfo {
+	as_num?: number;
+	as_name?: string;
+	continent_code?: string;
+	continent_name?: string;
+	country_code?: string;
+	country_name?: string;
+	registered_country_code?: string;
+	registered_country_name?: string;
+	region_code?: string[];
+	region_name?: string[];
+	postal_code?: string;
+	city?: string;
+	coordinates?: [number, number];
+	coordinates_accuracy_radius?: number;
+}
+
 interface IvreHost {
 	addr: string;
 	addresses: {
 		mac: string[];
 	};
+	infos?: IvreIpInfo;
 	categories: string[];
 	tags: IvreTag[];
 	hostnames: IvreHostname[];
 	ports: IvrePort[];
 }
 
-interface IvreMarkdownResult {
+interface IvreViewEntry {
 	address: string;
-	data: string;
+	filename: string;
 }
 
 const DEFAULT_SETTINGS: IvrePluginSettings = {
@@ -141,6 +160,7 @@ enum ElementType {
 	IpNetwork,
 	HostName,
 	MacAddress,
+	AsNum,
 
 	IvreLink,
 	Unknown,
@@ -148,6 +168,8 @@ enum ElementType {
 
 const MAC_ADDRESS =
 	/^[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}:[0-9a-f]{1,2}$/i;
+
+const AS_NUM = /^AS-?[0-9]+/;
 
 function ivre_guess_type(element: string, base_directory: string): ElementType {
 	if (net.isIP(element)) {
@@ -171,8 +193,11 @@ function ivre_guess_type(element: string, base_directory: string): ElementType {
 	if (MAC_ADDRESS.test(element)) {
 		return ElementType.MacAddress;
 	}
+	if (AS_NUM.test(element)) {
+		return ElementType.AsNum;
+	}
 	const ivre_link = new RegExp(
-		`^\\[\\[${base_directory}/(IP|Network|Hostname|MAC)/[^|\\]]+\\|[^\\]]+\\]\\]$`,
+		`^\\[\\[${base_directory}/(IP|AS|Network|Hostname|MAC)/[^|\\]]+\\|[^\\]]+\\]\\]$`,
 	);
 	if (ivre_link.test(element)) {
 		return ElementType.IvreLink;
@@ -194,7 +219,7 @@ function create_note(vault: Vault, fname: string, content: string) {
 			// file already exists
 			const file = vault.getAbstractFileByPath(fname);
 			if (!(file instanceof TFile)) {
-				console.log(`Cannot recreate ${fname}`);
+				console.log(`[IVRE] Cannot recreate ${fname}`);
 			} else {
 				vault.modify(file, content);
 			}
@@ -276,9 +301,9 @@ function ivre_create_mac(mac: string, vault: Vault, base_directory: string) {
 	const base = `${base_directory}/MAC`;
 	create_folder(vault, base);
 	const fname = `${base}/${mac.toLowerCase().replace(/:/g, "")}.md`;
-	const ivre_ipdata = spawnSync("ivre", ["macdata", "--json", mac]);
+	const ivre_macdata = spawnSync("ivre", ["macdata", "--json", mac]);
 	let content = `MAC ${mac.toLowerCase()}\n`;
-	const data = JSON.parse(ivre_ipdata.stdout.toString());
+	const data = JSON.parse(ivre_macdata.stdout.toString());
 	if ("manufacturer_code" in data) {
 		content += `- Manufacturer code: ${data.manufacturer_code}\n`;
 	}
@@ -407,185 +432,92 @@ function ivre_handle_address(
 	address: string,
 	vault: Vault,
 	settings: IvrePluginSettings,
-): string | undefined {
-	const data = [];
-	if (settings.use_data) {
-		const inst = new IvreSearchData();
-		const result = inst.process_ipaddress(address, vault, settings);
-		if (result) {
-			data.push(result);
-		}
-	}
+): string {
 	const inst = new IvreSearchView();
-	const result = inst.process_ipaddress(address, vault, settings);
-	if (result) {
-		data.push(result);
-	}
-	if (data.length > 0) {
-		const base = `${settings.base_directory}/IP`;
-		create_folder(vault, base);
-		const fname = `${base}/${address.replace(/:/g, "_")}.md`;
-		create_note(vault, fname, data.join("\n"));
-		return fname;
-	}
-	return undefined;
+	inst.process_ipaddress(address, vault, settings, undefined, (code) => {
+		if (code === 0) {
+			new Notice(`🍸 ✅ IP address ${address} processed!`);
+		}
+	});
+	return `${settings.base_directory}/IP/${address.replace(/:/g, "_")}.md`;
 }
 function ivre_handle_hostname(
 	hostname: string,
 	vault: Vault,
 	settings: IvrePluginSettings,
-): string | undefined {
+): string {
 	const inst = new IvreSearchView();
-	let one_answer = false;
 	hostname = hostname.toLowerCase().replace(/\.$/, "");
-	if (settings.use_data) {
-		const inst_data = new IvreSearchData();
-		for (const result of inst.process_hostname(hostname, vault, settings)) {
-			const data = [];
-			const data_result = inst_data.process_ipaddress(
-				result.address,
-				vault,
-				settings,
-			);
-			if (data_result) {
-				data.push(data_result);
-			}
-			data.push(result.data);
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n"),
-			);
-			one_answer = true;
+	inst.process_hostname(hostname, vault, settings, undefined, (code) => {
+		if (code === 0) {
+			new Notice(`🍸 ✅ hostname ${hostname} processed!`);
 		}
-	} else {
-		for (const result of inst.process_hostname(hostname, vault, settings)) {
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data,
-			);
-			one_answer = true;
-		}
-	}
-	if (one_answer) {
-		return `${settings.base_directory}/Hostname/${hostname}.md`;
-	}
-	return undefined;
+	});
+	return `${settings.base_directory}/Hostname/${hostname}.md`;
 }
 function ivre_handle_network(
 	network: string,
 	vault: Vault,
 	settings: IvrePluginSettings,
+): string {
+	const inst = new IvreSearchView();
+	const results: IvreViewEntry[] = [];
+	const base = `${settings.base_directory}/Network`;
+	const fname = `${base}/${network.replace(/[/:]/g, "_")}.md`;
+	inst.process_network(
+		network,
+		vault,
+		settings,
+		(result) => {
+			results.push(result);
+		},
+		(code) => {
+			create_folder(vault, base);
+			const addr_list = results
+				.map(
+					(result) =>
+						`- [[${result.filename.replace(/\.md$/, "")}|${result.address}]]`,
+				)
+				.join("\n");
+			create_note(vault, fname, `Network: ${network}\n${addr_list}\n`);
+			if (code === 0) {
+				new Notice(`🍸 ✅ network ${network} processed!`);
+			}
+		},
+	);
+	return fname;
+}
+function ivre_handle_asnum(
+	as_num: number,
+	vault: Vault,
+	settings: IvrePluginSettings,
 ): string | undefined {
 	const inst = new IvreSearchView();
-	const answers = [];
-	if (settings.use_data) {
-		const inst_data = new IvreSearchData();
-		for (const result of inst.process_network(network, vault, settings)) {
-			const data = [];
-			const data_result = inst_data.process_ipaddress(
-				result.address,
-				vault,
-				settings,
-			);
-			if (data_result) {
-				data.push(data_result);
-			}
-			data.push(result.data);
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n"),
-			);
-			answers.push(result.address);
+	inst.process_asnum(as_num, vault, settings, undefined, (code) => {
+		if (code === 0) {
+			new Notice(`🍸 ✅ AS AS${as_num} processed!`);
 		}
-	} else {
-		for (const result of inst.process_network(network, vault, settings)) {
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data,
-			);
-			answers.push(result.address);
-		}
-	}
-	if (answers.length > 0) {
-		const base = `${settings.base_directory}/Network`;
-		create_folder(vault, base);
-		const fname = `${base}/${network.replace(/[/:]/g, "_")}.md`;
-		const addr_list = answers
-			.map((addr) => {
-				return `- [[${settings.base_directory}/IP/${addr.replace(
-					/:/g,
-					"_",
-				)}|${addr}]]`;
-			})
-			.join("\n");
-		create_note(vault, fname, `Network: ${network}\n${addr_list}\n`);
-		return fname;
-	}
-	return undefined;
+	});
+	return `${settings.base_directory}/AS/AS${as_num}.md`;
 }
 function ivre_handle_mac(
 	mac: string,
 	vault: Vault,
 	settings: IvrePluginSettings,
-): string | undefined {
+): string {
 	const inst = new IvreSearchView();
-	let one_answer = false;
 	mac = mac.toLowerCase();
-	if (settings.use_data) {
-		const inst_data = new IvreSearchData();
-		for (const result of inst.process_mac(mac, vault, settings)) {
-			const data = [];
-			const data_result = inst_data.process_ipaddress(
-				result.address,
-				vault,
-				settings,
-			);
-			if (data_result) {
-				data.push(data_result);
-			}
-			data.push(result.data);
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				data.join("\n"),
-			);
-			one_answer = true;
+	inst.process_mac(mac, vault, settings, undefined, (code) => {
+		if (code === 0) {
+			new Notice(`🍸 ✅ MAC address ${mac} processed!`);
 		}
-	} else {
-		for (const result of inst.process_mac(mac, vault, settings)) {
-			const base = `${settings.base_directory}/IP`;
-			create_folder(vault, base);
-			create_note(
-				vault,
-				`${base}/${result.address.replace(/:/g, "_")}.md`,
-				result.data,
-			);
-			one_answer = true;
-		}
-	}
-	if (one_answer) {
-		return `${settings.base_directory}/MAC/${mac.replace(/:/g, "")}.md`;
-	}
-	return undefined;
+	});
+	return `${settings.base_directory}/MAC/${mac.replace(/:/g, "")}.md`;
 }
 function ivre_refresh_data(vault: Vault, settings: IvrePluginSettings) {
 	const base = vault.getAbstractFileByPath(settings.base_directory);
 	if (!(base instanceof TFolder)) {
-		console.log(`IVRE's base is not a folder: ${base}`);
+		new Notice(`🍸 ⚠️ Base [${base}] is not a folder`);
 		return;
 	}
 	const sub_dirs = Object.fromEntries(base.children.map((x) => [x.name, x]));
@@ -606,69 +538,12 @@ function ivre_refresh_data(vault: Vault, settings: IvrePluginSettings) {
 
 class IvreSearch {}
 
-class IvreSearchData extends IvreSearch {
-	process_ipaddress(
-		address: string,
-		vault: Vault,
-		settings: IvrePluginSettings,
-	): string | undefined {
-		const options = ["ipdata", "--json"];
-		if (settings.db_url_data) {
-			options.push("--from-db", settings.db_url_data);
-		}
-		options.push(address);
-		const ivre_ipdata = spawnSync("ivre", options);
-		const data = JSON.parse(ivre_ipdata.stdout.toString());
-		let answer = "> [!ABSTRACT] IP Data\n";
-		if ("as_num" in data) {
-			ivre_create_as(
-				data.as_num,
-				data.as_name || "-",
-				vault,
-				settings.base_directory,
-			);
-			answer += `> ## Autonomous System ##\n> [[${
-				settings.base_directory
-			}/AS/AS${data.as_num}|AS${data.as_num} - ${
-				data.as_name || "-"
-			}]]\n`;
-		}
-		if ("country_code" in data) {
-			ivre_create_country(
-				data.country_code,
-				data.country_name || "-",
-				vault,
-				settings.base_directory,
-			);
-			answer += `> ## Geography ##\n> Country: [[${
-				settings.base_directory
-			}/Country/${data.country_code}|${flag_emoji(data.country_code)} - ${
-				data.country_code
-			} - ${data.country_name || "-"}]]\n`;
-			if ("region_code" in data) {
-				data.region_code.forEach((code: string, index: number) => {
-					answer += `> Region: ${code} - ${
-						data.region_name[index] || "-"
-					}\n`;
-				});
-			}
-			if ("city" in data) {
-				answer += `> City: ${data.city} - ${data.postal_code || "-"}\n`;
-			}
-		}
-		if ("address_type" in data) {
-			answer += `> ## Address type ##\n> ${data.address_type}\n`;
-		}
-		return answer;
-	}
-}
-
 class IvreSearchView extends IvreSearch {
 	process_line(
 		line: string,
 		vault: Vault,
 		settings: IvrePluginSettings,
-	): string | undefined {
+	): IvreViewEntry | undefined {
 		if (!line) {
 			return;
 		}
@@ -678,6 +553,49 @@ class IvreSearchView extends IvreSearch {
 		}
 		let answer = "";
 		let tmp_answer = "";
+		let info: IvreIpInfo | undefined;
+		if ((info = data.infos)) {
+			if (info.as_num) {
+				ivre_create_as(
+					info.as_num,
+					info.as_name || "-",
+					vault,
+					settings.base_directory,
+				);
+				tmp_answer += `> ## Autonomous System ##\n> [[${
+					settings.base_directory
+				}/AS/AS${info.as_num}|AS${info.as_num} - ${
+					info.as_name || "-"
+				}]]\n`;
+			}
+			if (info.country_code) {
+				ivre_create_country(
+					info.country_code,
+					info.country_name || "-",
+					vault,
+					settings.base_directory,
+				);
+				tmp_answer += `> ## Geography ##\n> Country: [[${
+					settings.base_directory
+				}/Country/${info.country_code}|${flag_emoji(info.country_code)} - ${
+					info.country_code
+				} - ${info.country_name || "-"}]]\n`;
+				(info.region_code || []).forEach(
+					(code: string, index: number) => {
+						tmp_answer += `> Region: ${code} - ${
+							(info.region_name || [])[index] || "-"
+						}\n`;
+					},
+				);
+			}
+			if (info.city) {
+				tmp_answer += `> City: ${info.city} - ${info.postal_code || "-"}\n`;
+			}
+			if (tmp_answer) {
+				answer += `> [!ABSTRACT]- IP Data\n${tmp_answer}\n`;
+			}
+		}
+		tmp_answer = "";
 		(data.tags || []).forEach((tag: IvreTag) => {
 			tmp_answer += `> [!${tag_type(tag)}]- ${
 				tag.value
@@ -867,32 +785,63 @@ class IvreSearchView extends IvreSearch {
 				tmp_answer_host.length - 1,
 			)}`;
 		}
-		return answer;
+		if (data.addr && answer) {
+			const base = `${settings.base_directory}/IP`;
+			create_folder(vault, base);
+			const fname = `${base}/${data.addr.replace(/:/g, "_")}.md`;
+			create_note(vault, fname, answer);
+			return { address: data.addr, filename: fname };
+		}
+	}
+	exec_and_process(
+		options: string[],
+		vault: Vault,
+		settings: IvrePluginSettings,
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
+		const ivre_view = spawn("ivre", options);
+		const ivre_view_lines = createInterface(ivre_view.stdout);
+		ivre_view_lines.on("line", (line) => {
+			const result = this.process_line(line, vault, settings);
+			if (on_result && result) {
+				on_result(result);
+			}
+		});
+		ivre_view.on("close", function (code) {
+			if (code) {
+				new Notice(
+					`🍸 ⚠️ Command ivre [${options}] failed with code ${code}`,
+				);
+			} else {
+				console.log(`IVRE: Command ivre [${options}] succeeded!`);
+			}
+			if (on_close) {
+				on_close(code);
+			}
+		});
 	}
 	process_ipaddress(
 		address: string,
 		vault: Vault,
 		settings: IvrePluginSettings,
-	): string | undefined {
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
 		const options = ["view", "--json", "--limit", "1"];
 		if (settings.db_url_view) {
 			options.push("--from-db", settings.db_url_view);
 		}
 		options.push(address);
-		const ivre_view = spawnSync("ivre", options);
-		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
-			const data = this.process_line(line, vault, settings);
-			if (data) {
-				return data;
-			}
-		}
-		return undefined;
+		this.exec_and_process(options, vault, settings, on_result, on_close);
 	}
-	*process_hostname(
+	process_hostname(
 		hostname: string,
 		vault: Vault,
 		settings: IvrePluginSettings,
-	): Generator<IvreMarkdownResult, void, unknown> {
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
 			options.push("--from-db", settings.db_url_view);
@@ -901,58 +850,48 @@ class IvreSearchView extends IvreSearch {
 			settings.use_subdomains ? "--domain" : "--hostname",
 			hostname,
 		);
-		const ivre_view = spawnSync("ivre", options);
-		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
-			const data = this.process_line(line, vault, settings);
-			if (data) {
-				yield {
-					address: JSON.parse(line).addr,
-					data: data,
-				};
-			}
-		}
+		this.exec_and_process(options, vault, settings, on_result, on_close);
 	}
-	*process_network(
+	process_network(
 		network: string,
 		vault: Vault,
 		settings: IvrePluginSettings,
-	): Generator<IvreMarkdownResult, void, unknown> {
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
 			options.push("--from-db", settings.db_url_view);
 		}
 		options.push(network);
-		const ivre_view = spawnSync("ivre", options);
-		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
-			const data = this.process_line(line, vault, settings);
-			if (data) {
-				yield {
-					address: JSON.parse(line).addr,
-					data: data,
-				};
-			}
-		}
+		this.exec_and_process(options, vault, settings, on_result, on_close);
 	}
-	*process_mac(
+	process_asnum(
+		as_num: number,
+		vault: Vault,
+		settings: IvrePluginSettings,
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
+		const options = ["view", "--json", "--asnum", as_num.toString()];
+		if (settings.db_url_view) {
+			options.push("--from-db", settings.db_url_view);
+		}
+		this.exec_and_process(options, vault, settings, on_result, on_close);
+	}
+	process_mac(
 		mac: string,
 		vault: Vault,
 		settings: IvrePluginSettings,
-	): Generator<IvreMarkdownResult, void, unknown> {
+		on_result?: ((entry: IvreViewEntry) => void) | undefined,
+		on_close?: ((code: number | null) => void) | undefined,
+	): void {
 		const options = ["view", "--json"];
 		if (settings.db_url_view) {
 			options.push("--from-db", settings.db_url_view);
 		}
 		options.push("--mac", mac);
-		const ivre_view = spawnSync("ivre", options);
-		for (const line of ivre_view.stdout.toString().split(/\r?\n/)) {
-			const data = this.process_line(line, vault, settings);
-			if (data) {
-				yield {
-					address: JSON.parse(line).addr,
-					data: data,
-				};
-			}
-		}
+		this.exec_and_process(options, vault, settings, on_result, on_close);
 	}
 }
 
@@ -967,7 +906,7 @@ function ivre_analyze_selection(
 	content_data.split(/\s+/).forEach((element) => {
 		switch (ivre_guess_type(element, settings.base_directory)) {
 			case ElementType.IpAddress: {
-				new Notice(`Processing IP address: ${element}`);
+				new Notice(`🍸 Processing IP address: ${element}`);
 				const fname = ivre_handle_address(element, vault, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
@@ -975,15 +914,27 @@ function ivre_analyze_selection(
 				break;
 			}
 			case ElementType.IpNetwork: {
-				new Notice(`Processing network: ${element}`);
+				new Notice(`🍸 Processing network: ${element}`);
 				const fname = ivre_handle_network(element, vault, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
 				}
 				break;
 			}
+			case ElementType.AsNum: {
+				new Notice(`🍸 Processing AS: ${element}`);
+				const fname = ivre_handle_asnum(
+					parseInt(element.slice(2)),
+					vault,
+					settings,
+				);
+				if (fname) {
+					links.push({ element: element, link: fname.slice(0, -3) });
+				}
+				break;
+			}
 			case ElementType.HostName: {
-				new Notice(`Processing hostname: ${element}`);
+				new Notice(`🍸 Processing hostname: ${element}`);
 				const fname = ivre_handle_hostname(element, vault, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
@@ -991,7 +942,7 @@ function ivre_analyze_selection(
 				break;
 			}
 			case ElementType.MacAddress: {
-				new Notice(`Processing MAC address: ${element}`);
+				new Notice(`🍸 Processing MAC address: ${element}`);
 				const fname = ivre_handle_mac(element, vault, settings);
 				if (fname) {
 					links.push({ element: element, link: fname.slice(0, -3) });
@@ -1005,27 +956,38 @@ function ivre_analyze_selection(
 				if (data !== null) {
 					switch (ivre_guess_type(data[1], settings.base_directory)) {
 						case ElementType.IpAddress: {
-							new Notice(`Processing IP address: ${data[1]}`);
+							new Notice(`🍸 Processing IP address: ${data[1]}`);
 							ivre_handle_address(data[1], vault, settings);
 							break;
 						}
 						case ElementType.IpNetwork: {
-							new Notice(`Processing network: ${data[1]}`);
+							new Notice(`🍸 Processing network: ${data[1]}`);
 							ivre_handle_network(data[1], vault, settings);
 							break;
 						}
+						case ElementType.AsNum: {
+							new Notice(`🍸 Processing AS: ${data[1]}`);
+							ivre_handle_asnum(
+								parseInt(data[1].slice(2)),
+								vault,
+								settings,
+							);
+							break;
+						}
 						case ElementType.HostName: {
-							new Notice(`Processing hostname: ${data[1]}`);
+							new Notice(`🍸 Processing hostname: ${data[1]}`);
 							ivre_handle_hostname(data[1], vault, settings);
 							break;
 						}
 						case ElementType.MacAddress: {
-							new Notice(`Processing MAC address: ${data[1]}`);
+							new Notice(`🍸 Processing MAC address: ${data[1]}`);
 							ivre_handle_mac(data[1], vault, settings);
 							break;
 						}
 						default: {
-							new Notice(`Element ignored: ${data[1]}`);
+							console.log(
+								`[IVRE] Element in link ignored: ${data[1]}`,
+							);
 						}
 					}
 				}
@@ -1033,7 +995,7 @@ function ivre_analyze_selection(
 			}
 			default: {
 				if (element) {
-					new Notice(`Element ignored: ${element}`);
+					console.log(`[IVRE] Element ignored: ${element}`);
 				}
 			}
 		}
@@ -1075,13 +1037,13 @@ export default class IvrePlugin extends Plugin {
 				const view =
 					this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (!view) {
-					new Notice("Call me from a MarkdownView!");
+					new Notice("🍸 ⚠️ Call me from a MarkdownView!");
 				} else {
 					const view_mode = view.getMode(); // "preview" or "source" (can also be "live" but I don't know when that happens)
 					switch (view_mode) {
 						case "preview":
 							new Notice(
-								"Call me from a MarkdownView in source mode!",
+								"🍸 ⚠️ Call me from a MarkdownView in source mode!",
 							);
 							break;
 						case "source":
@@ -1096,13 +1058,13 @@ export default class IvrePlugin extends Plugin {
 								);
 							} else {
 								new Notice(
-									"Cannot find .editor in current view!",
+									"🍸 ⚠️ Cannot find .editor in current view!",
 								);
 							}
 							break;
 						default:
 							new Notice(
-								"Call me from a MarkdownView in source mode!",
+								"🍸 ⚠️ Call me from a MarkdownView in source mode!",
 							);
 							break;
 					}
@@ -1120,7 +1082,7 @@ export default class IvrePlugin extends Plugin {
 				.split(/\r?\n/)
 				.forEach((line) => {
 					if (line.startsWith("Version ")) {
-						statusBarItemEl.setText(`IVRE v${line.slice(8)}`);
+						statusBarItemEl.setText(`🍸 IVRE v${line.slice(8)}`);
 						return;
 					}
 				});
@@ -1128,12 +1090,14 @@ export default class IvrePlugin extends Plugin {
 		ivre_version.on("close", (code: number) => {
 			if (code !== 0) {
 				statusBarItemEl.setText(
-					`IVRE --version exited with code ${code}`,
+					`🍸 ⚠️ IVRE --version exited with code ${code}`,
 				);
 			}
 		});
 		ivre_version.on("error", (err: number) => {
-			statusBarItemEl.setText(`IVRE --version exited with error ${err}`);
+			statusBarItemEl.setText(
+				`🍸 ⚠️ IVRE --version exited with error ${err}`,
+			);
 		});
 
 		// This adds an editor command that can perform some operation on the current editor instance
@@ -1200,6 +1164,7 @@ class IvreSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.use_data)
 					.onChange(async (value) => {
 						this.plugin.settings.use_data = value;
+						await this.plugin.saveSettings();
 					}),
 			);
 		new Setting(containerEl)
@@ -1211,6 +1176,7 @@ class IvreSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						setting_url_view.setDisabled(!value);
 						this.plugin.settings.use_subdomains = value;
+						await this.plugin.saveSettings();
 					}),
 			);
 		new Setting(containerEl)
