@@ -23,7 +23,7 @@
 		"typescript": "5.7.3"
 	},
 	"dependencies": {
-		"npm-check-updates": "^17.1.11",
+		"npm-check-updates": "^18.0.1",
 		"prettier": "^3.4.2"
 	}
 }
