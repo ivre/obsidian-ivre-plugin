@@ -20,7 +20,7 @@
 		"is-valid-hostname": "1.0.2",
 		"obsidian": "latest",
 		"tslib": "2.8.1",
-		"typescript": "5.7.3"
+		"typescript": "5.8.3"
 	},
 	"dependencies": {
 		"npm-check-updates": "^18.0.1",
