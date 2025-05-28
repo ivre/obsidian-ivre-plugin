@@ -14,7 +14,7 @@
 	"devDependencies": {
 		"@types/node": "^22.15.19",
 		"@typescript-eslint/eslint-plugin": "8.32.1",
-		"@typescript-eslint/parser": "8.32.1",
+		"@typescript-eslint/parser": "8.33.0",
 		"builtin-modules": "5.0.0",
 		"esbuild": "0.25.4",
 		"is-valid-hostname": "1.0.2",
