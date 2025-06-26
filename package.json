@@ -24,6 +24,6 @@
 	},
 	"dependencies": {
 		"npm-check-updates": "^18.0.1",
-		"prettier": "^3.5.3"
+		"prettier": "^3.6.1"
 	}
 }
